@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner de Asistencia QR</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Librerías QR -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>📷 Escáner de Asistencia</h1>
+            <nav>
+                <a href="index.html" class="nav-link">🏠 QR Dinámico</a>
+                <a href="static-qr.html" class="nav-link">🎯 QR Estático</a>
+                <a href="scanner.html" class="nav-link active">📷 Escanear QR</a>
+                <a href="admin/" class="nav-link">📈 Administración</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <h2>📸 Escanear Código QR</h2>
+            
+            <div id="scannerSection">
+                <div class="scanner-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    <div class="scanner-overlay"></div>
+                </div>
+                
+                <div class="form-group">
+                    <button id="startScanBtn" class="btn btn-primary">
+                        🎥 Iniciar Escáner
+                    </button>
+                    <button id="stopScanBtn" class="btn btn-danger" style="display: none;">
+                        ⏹️ Detener Escáner
+                    </button>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h4>📋 Instrucciones:</h4>
+                    <ul style="margin: 0; padding-left: 1.5rem;">
+                        <li>🔹 Haz clic en "Iniciar Escáner"</li>
+                        <li>🔹 Permite el acceso a la cámara</li>
+                        <li>🔹 Enfoca el código QR dentro del cuadro verde</li>
+                        <li>🔹 El sistema registrará automáticamente tu asistencia</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="resultSection" style="display: none;">
+                <div class="alert alert-success">
+                    <h3>✅ Asistencia Registrada</h3>
+                    <div id="resultInfo"></div>
+                </div>
+                
+                <button onclick="resetScanner()" class="btn btn-primary">
+                    🔄 Escanear Otro QR
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="assets/js/qr-scanner.js"></script>
+    <script>
+        let isScanning = false;
+        
+        document.getElementById('startScanBtn').addEventListener('click', async function() {
+            const startBtn = document.getElementById('startScanBtn');
+            const stopBtn = document.getElementById('stopScanBtn');
+            
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="loading"></span> Iniciando...';
+            
+            try {
+                // Inicializar escáner
+                await qrScanner.init('video', 'canvas');
+                
+                // Configurar evento de detección
+                document.addEventListener('qrDetected', handleQRDetected);
+                
+                // Comenzar escaneo
+                qrScanner.startScan();
+                isScanning = true;
+                
+                // Actualizar UI
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                
+                attendanceSystem.showMessage('📷 Escáner activado. Enfoca el código QR.', 'info');
+                
+            } catch (error) {
+                attendanceSystem.showMessage('❌ Error: ' + error.message, 'danger');
+                startBtn.disabled = false;
+                startBtn.innerHTML = '🎥 Iniciar Escáner';
+            }
+        });
+        
+        document.getElementById('stopScanBtn').addEventListener('click', function() {
+            stopScanner();
+        });
+        
+        function handleQRDetected(event) {
+            const qrData = event.detail.qrData;
+            
+            // Vibrar si está disponible
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+            
+            // Mostrar loading
+            attendanceSystem.showMessage('⏳ Procesando código QR...', 'info');
+            
+            // Intentar determinar si es QR estático o dinámico
+            try {
+                const parsedQR = JSON.parse(qrData);
+                
+                if (parsedQR.tipo === 'static_qr') {
+                    // QR estático - usar endpoint estático
+                    registerStaticAttendance(qrData);
+                } else {
+                    // QR dinámico - usar endpoint dinámico
+                    registerAttendance(qrData);
+                }
+            } catch (error) {
+                // Si no puede parsear, asumir dinámico
+                registerAttendance(qrData);
+            }
+        }
+        
+        async function registerAttendance(qrData) {
+            try {
+                const response = await attendanceSystem.registerAttendance(qrData);
+                
+                // Mostrar resultado
+                displayResult(response);
+                
+                // Detener escáner
+                stopScanner();
+                
+            } catch (error) {
+                attendanceSystem.showMessage('❌ ' + error.message, 'danger');
+                
+                // Reanudar escaneo después de error
+                setTimeout(() => {
+                    if (isScanning) {
+                        qrScanner.startScan();
+                    }
+                }, 2000);
+            }
+        }
+        
+        async function registerStaticAttendance(qrData) {
+            try {
+                const response = await attendanceSystem.registerStaticAttendance(qrData);
+                
+                // Mostrar resultado
+                displayResult(response);
+                
+                // Detener escáner
+                stopScanner();
+                
+            } catch (error) {
+                attendanceSystem.showMessage('❌ ' + error.message, 'danger');
+                
+                // Reanudar escaneo después de error
+                setTimeout(() => {
+                    if (isScanning) {
+                        qrScanner.startScan();
+                    }
+                }, 2000);
+            }
+        }
+        
+        function displayResult(data) {
+            const resultSection = document.getElementById('resultSection');
+            const scannerSection = document.getElementById('scannerSection');
+            const resultInfo = document.getElementById('resultInfo');
+            
+            resultInfo.innerHTML = `
+                <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <strong>👤 Empleado:</strong>
+                        <span>${data.empleado.nombre} ${data.empleado.apellido}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <strong>🆔 Código:</strong>
+                        <span>${data.empleado.codigo_empleado}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <strong>📝 Tipo:</strong>
+                        <span style="text-transform: uppercase; font-weight: 600;">${data.tipo_registro}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <strong>🕐 Fecha y Hora:</strong>
+                        <span>${attendanceSystem.formatDateTime(data.fecha_hora)}</span>
+                    </div>
+                </div>
+            `;
+            
+            scannerSection.style.display = 'none';
+            resultSection.style.display = 'block';
+            
+            // Mostrar mensaje de éxito
+            attendanceSystem.showMessage('🎉 ' + data.message, 'success');
+        }
+        
+        function stopScanner() {
+            if (qrScanner) {
+                qrScanner.stopScan();
+            }
+            
+            isScanning = false;
+            
+            // Remover event listener
+            document.removeEventListener('qrDetected', handleQRDetected);
+            
+            // Actualizar UI
+            const startBtn = document.getElementById('startScanBtn');
+            const stopBtn = document.getElementById('stopScanBtn');
+            
+            startBtn.style.display = 'inline-block';
+            startBtn.disabled = false;
+            startBtn.innerHTML = '🎥 Iniciar Escáner';
+            stopBtn.style.display = 'none';
+        }
+        
+        function resetScanner() {
+            const resultSection = document.getElementById('resultSection');
+            const scannerSection = document.getElementById('scannerSection');
+            
+            resultSection.style.display = 'none';
+            scannerSection.style.display = 'block';
+        }
+        
+        // Limpiar al salir de la página
+        window.addEventListener('beforeunload', function() {
+            if (qrScanner) {
+                qrScanner.stopScan();
+            }
+        });
+        
+        // Manejar cambios de visibilidad de la página
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && isScanning) {
+                stopScanner();
+                attendanceSystem.showMessage('⚠️ Escáner detenido por cambio de pestaña', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

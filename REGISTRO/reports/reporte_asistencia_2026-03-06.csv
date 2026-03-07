@@ -1,0 +1,4 @@
+"Código Empleado",Nombre,Apellido,Departamento,"Tipo Registro",Fecha,Hora,"Dirección IP"
+EMP001,Juan,Pérez,TI,salida,2026-03-06,10:46:47,::1
+EMP001,Juan,Pérez,TI,entrada,2026-03-06,10:41:20,::1
+EMP002,María,González,RH,entrada,2026-03-06,10:41:04,::1
