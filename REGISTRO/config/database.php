@@ -1,24 +1,24 @@
 <?php
-// Configuración de la base de datos
-class Database {
-    private $host = 'localhost';
-    private $db_name = 'registro_asistencia';
-    private $username = 'root';
-    private $password = '';
-    private $conn;
+// Configuración de la base de datos para Render
+class BaseDeDatos {
+    private $host = 'dpg-d61rnikr85hc73ad849g-a';
+    private $db_name = 'bd_asistencia';
+    private $usuario = 'bd_asistencia_user';
+    private $password = 'NMASb682cmpbKhjfwe5F7O7Xbyx9hvbO'; // Pégala aquí
+    private $puerto = '5432';
+    public $conexion;
 
-    public function getConnection() {
-        $this->conn = null;
-        
+    public function obtenerConexión() {
+        $this->conexion = null;
         try {
-            $this->conn = new PDO("mysql:host=" . $this->host . ";dbname=" . $this->db_name, $this->username, $this->password);
-            $this->conn->exec("set names utf8");
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            // Conexión específica para PostgreSQL en Render
+            $this->conexion = new PDO("pgsql:host=" . $this->host . ";port=" . $this->puerto . ";dbname=" . $this->db_name, $this->usuario, $this->password);
+            $this->conexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->conexion->exec("set names utf8");
         } catch(PDOException $exception) {
             echo "Error de conexión: " . $exception->getMessage();
         }
-        
-        return $this->conn;
+        return $this->conexion;
     }
 }
 ?>
