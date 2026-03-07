@@ -31,14 +31,14 @@ RUN a2enmod rewrite \
 RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 
 # Copiar archivos del proyecto
-COPY . /var/www/html/
+COPY ./REGISTRO /var/www/html/
 
 # Establecer permisos
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
 # Exponer puerto para Render
-EXPOSE 10000
+EXPOSE 80
 
 # Comando de inicio
 CMD ["apache2-foreground"]
